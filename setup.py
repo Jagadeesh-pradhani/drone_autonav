@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+from glob import glob
+import os
 
 package_name = 'drone_autonav'
 
@@ -10,7 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/drone_autonav.launch.py']),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -22,11 +24,8 @@ setup(
     extras_require={'test':['pytest'],},
     entry_points={
         'console_scripts': [
-            'depth_processor = drone_autonav.depth_processor:main',
-            'occupancy_mapper = drone_autonav.occupancy_mapper:main',
-            'path_planner = drone_autonav.path_planner:main',
-            'trajectory_controller = drone_autonav.trajectory_controller:main',
             'drone_autonav_node = drone_autonav.drone_autonav_node:main',
+            'send_goal = drone_autonav.goal:main',
         ],
     },
 )
