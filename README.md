@@ -122,4 +122,4 @@ The goal publisher will send sequential goals to the planner node.
     - `uav.launch.launch.py`: Launch file for UAV-related files.
 
 ## Summary
-This package uses a structured approach to autonomous navigation by combining A* search for path planning, collision checking via an OccupancyGrid, and dynamic path modification (altering altitude) to safely avoid obstacles. The separation of concerns into different nodes (planner and goal publisher) and launch files makes the system modular and easier to manage.
+This package uses a structured approach to autonomous navigation by combining A* search for path planning, collision checking via an OccupancyGrid, and dynamic path modification (altering altitude) to avoid obstacles
