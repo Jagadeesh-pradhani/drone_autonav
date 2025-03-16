@@ -92,6 +92,20 @@ def generate_launch_description():
             output="screen"
         )
     
+    tf_2 = Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            arguments=["0", "0", "0", "0", "0", "0", "world", "map_ugv"],
+            output="screen"
+        )
+    
+    tf_3 = Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            arguments=["0", "0", "0", "0", "0", "0", "world", "map_ugv"],
+            output="screen"
+        )
+    
     uav_controller = Node(
             package='sjtu_drone_control',
             executable='fellow_path_controller',
@@ -122,6 +136,8 @@ def generate_launch_description():
         ugv_rsp,
         ugv_spawn,
         tf_,
+        tf_2,
+        # tf_3,
         uav_controller,
         octamap,
         planner

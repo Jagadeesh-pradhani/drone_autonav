@@ -7,7 +7,6 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, PointStamped, Point, Quaternion
 from nav_msgs.msg import Odometry, Path, OccupancyGrid
 from std_msgs.msg import Empty
-import threading
 
 # Import the provided CollisionChecker and helper GridNode.
 from drone_autonav.collision_checker import CollisionChecker
@@ -16,7 +15,6 @@ from drone_autonav.node import Node as GridNode  # Helper class representing a 2
 class DroneAutonav(Node):
     def __init__(self):
         super().__init__('drone_autonav_node')
-        self.lock = threading.Lock()
 
         # Declare parameters.
         self.declare_parameter("avoid_height", 2.5)
@@ -58,55 +56,42 @@ class DroneAutonav(Node):
 
     # --- Callback Methods ---
     def goal_reached_callback(self, msg: Empty):
-        with self.lock:
-            self.get_logger().info('Received goal reached signal.')
-            # When goal is reached, restore default altitude if needed.
-            if self.path_modified:
-                self.restore_default_altitude()
+        self.get_logger().info('Received goal reached signal.')
+        # When goal is reached, restore default altitude if needed.
+        if self.path_modified:
+            self.restore_default_altitude()
+            # self.publish_path()
             self.path_modified = False
-            # Update current position to the reached goal.
-            if self.goal_position is not None:
-                self.current_position = self.goal_position
-            # Clear the previous path to force replanning on new goals.
-            self.path_waypoints = []
 
     def goal_callback(self, msg: PoseStamped):
-        with self.lock:
-            self.goal_position = msg.pose.position
-            # Set a default goal altitude if not provided.
-            self.goal_position.z = 1.0
-            self.default_altitude = self.goal_position.z
-            self.new_goal = True
-            # Clear any previous path waypoints.
-            self.path_waypoints = []
-            self.get_logger().info(
-                f"Received goal_pose: ({self.goal_position.x:.2f}, {self.goal_position.y:.2f}, {self.goal_position.z:.2f})")
-            if self.current_position is not None:
-                self.plan_path()
+        self.goal_position = msg.pose.position
+        # Set a default goal altitude if not provided.
+        self.goal_position.z = 1.0
+        self.default_altitude = self.goal_position.z
+        self.new_goal = True
+        self.get_logger().info(
+            f"Received goal_pose: ({self.goal_position.x:.2f}, {self.goal_position.y:.2f}, {self.goal_position.z:.2f})")
+        if self.current_position is not None:
+            self.plan_path()
 
     def clicked_point_callback(self, msg: PointStamped):
-        with self.lock:
-            self.goal_position = msg.point
-            # Clear any previous path waypoints.
-            self.path_waypoints = []
-            self.get_logger().info(
-                f"Received clicked_point: ({self.goal_position.x:.2f}, {self.goal_position.y:.2f}, {self.goal_position.z:.2f})")
-            if self.current_position is not None:
-                self.plan_path()
+        self.goal_position = msg.point
+        self.get_logger().info(
+            f"Received clicked_point: ({self.goal_position.x:.2f}, {self.goal_position.y:.2f}, {self.goal_position.z:.2f})")
+        if self.current_position is not None:
+            self.plan_path()
 
     def odom_callback(self, msg: Odometry):
-        with self.lock:
-            self.current_position = msg.pose.pose.position
-            self.current_orientation = msg.pose.pose.orientation
+        self.current_position = msg.pose.pose.position
+        self.current_orientation = msg.pose.pose.orientation
 
     def map_callback(self, msg: OccupancyGrid):
-        with self.lock:
-            if self.collision_checker is None:
-                self.collision_checker = CollisionChecker(msg, robot_radius=0.3, planning_bounds=[20, 20])
-                self.get_logger().info("Initialized CollisionChecker from map.")
-            else:
-                self.collision_checker.update_map(msg)
-                self.get_logger().debug("CollisionChecker updated from map.")
+        if self.collision_checker is None:
+            self.collision_checker = CollisionChecker(msg, robot_radius=0.3, planning_bounds=[20, 20])
+            self.get_logger().info("Initialized CollisionChecker from map.")
+        else:
+            self.collision_checker.update_map(msg)
+            self.get_logger().debug("CollisionChecker updated from map.")
 
     # --- Utility Methods ---
     def world_to_grid(self, point: Point) -> tuple:
@@ -252,35 +237,36 @@ class DroneAutonav(Node):
 
     # --- Timer Callback ---
     def timer_callback(self):
-        with self.lock:
-            # Only publish and update path; velocity publishing is removed.
-            if self.path_waypoints and self.current_position is not None and self.current_orientation is not None:
-                if self.collision_checker and not self.path_modified:
-                    path_nodes = [GridNode(x=wp[0], y=wp[1]) for wp in self.path_waypoints]
-                    occ_nodes = self.collision_checker.is_path_free(path_nodes)
-                    if occ_nodes and self.new_goal:
-                        self.new_goal = False
-                        self.get_logger().warn("Path is in collision. Modifying path altitude based on current position.")
-                        self.modify_path_for_collision()
-                        self.publish_path()
-            else:
-                if self.goal_position is not None and self.current_position is not None:
-                    self.get_logger().debug("No path available; re-planning...")
-                    self.plan_path()
+        # Only publish and update path; velocity publishing is removed.
+        if self.path_waypoints and self.current_position is not None and self.current_orientation is not None:
+            if self.collision_checker and not self.path_modified:
+                path_nodes = [GridNode(x=wp[0], y=wp[1]) for wp in self.path_waypoints]
+                occ_nodes = self.collision_checker.is_path_free(path_nodes)
+                if occ_nodes and self.new_goal:
+                    self.new_goal = False
+                    self.get_logger().warn("Path is in collision. Modifying path altitude based on current position.")
+                    self.modify_path_for_collision()
+                    self.publish_path()
+                # Optionally, you could restore default altitude when collisions clear.
+                # elif self.path_modified and not occ_nodes:
+                #     self.get_logger().info("Path is clear. Restoring default altitude.")
+                #     self.restore_default_altitude()
+                #     self.publish_path()
+        else:
+            if self.goal_position is not None and self.current_position is not None:
+                self.get_logger().debug("No path available; re-planning...")
+                self.plan_path()
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = DroneAutonav()
-    executor = rclpy.executors.MultiThreadedExecutor()
-    executor.add_node(node)
     try:
-        executor.spin()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
