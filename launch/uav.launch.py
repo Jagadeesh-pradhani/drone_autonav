@@ -30,7 +30,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time", default="true")
     use_gui = DeclareLaunchArgument("use_gui", default_value="true", choices=["true", "false"],
                                     description="Whether to execute gzclient")
-    xacro_file_name = "sjtu_drone_slam.urdf.xacro"
+    xacro_file_name = "sjtu_drone.urdf.xacro"
     pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
     xacro_file = os.path.join(
         get_package_share_directory("sjtu_drone_description"),
@@ -38,7 +38,7 @@ def generate_launch_description():
     )
     yaml_file_path = os.path.join(
         get_package_share_directory('sjtu_drone_bringup'),
-        'config', 'drone_slam.yaml'
+        'config', 'drone.yaml'
     )   
     
     robot_description_config = xacro.process_file(xacro_file, mappings={"params_path": yaml_file_path})
